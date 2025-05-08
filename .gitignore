@@ -1,0 +1,10 @@
+# vagrant data
+.vagrant
+
+# Vscode files
+.vscode
+
+# env (if needed)
+.env
+.env.local
+
