@@ -43,7 +43,9 @@ Vagrant.configure(2) do |config|
 			# Install K3s agent (worker) with:
 			# - Connection to the server IP
 			# - Shared token
-			curl -sfL https://get.k3s.io | K3S_URL=https://#{server_ip}:6443 sh -s - agent --token #{token}
+			curl -sfL https://get.k3s.io | \
+				K3S_URL=https://#{server_ip}:6443 \
+				sh -s - agent --token #{token}
 		SHELL
 	end
 
