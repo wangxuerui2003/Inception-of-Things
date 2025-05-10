@@ -1,0 +1,40 @@
+Vagrant.configure(2) do |config|
+	config.vm.box = "bento/ubuntu-24.04"
+
+	server_name = "wxueruiS"
+	server_ip = "192.168.56.110"
+
+	config.vm.define server_name do |server|
+		server.vm.network "private_network", ip: server_ip
+		server.vm.hostname = server_name
+
+		server.vm.provider "virtualbox" do |v|
+			v.memory = 2048
+			v.cpus = 1
+		end
+
+		server.vm.provision "shell", inline: <<-SHELL
+			# Install K3s server with:
+      # - Binding to 0.0.0.0 (accessible externally)
+      # - TLS SAN for the VM's IP (to avoid cert errors when accessing externally)
+			curl -sfL https://get.k3s.io | \
+			INSTALL_K3S_EXEC="server \
+        --bind-address 0.0.0.0 \
+				--tls-san #{server_ip} \
+        --write-kubeconfig-mode 644" \
+			sh -s -
+
+      # apply apps
+      kubectl apply -f /vagrant/conf/app1
+      kubectl apply -f /vagrant/conf/app2
+      kubectl apply -f /vagrant/conf/app3
+		SHELL
+	end
+
+	# global provision (always runs first)
+	config.vm.provision "shell", inline: <<-SHELL
+		sudo apt update -y
+		sudo apt install curl -y
+	SHELL
+
+end
