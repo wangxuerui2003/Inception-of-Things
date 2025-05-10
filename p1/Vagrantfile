@@ -5,7 +5,6 @@ Vagrant.configure(2) do |config|
 	server_ip = "192.168.56.110"
 	serverworker_name = "wxueruiSW"
 	serverworker_ip = "192.168.56.111"
-	token = "yoyoyo"
 
 	config.vm.define server_name do |server|
 		server.vm.network "private_network", ip: server_ip
@@ -19,17 +18,17 @@ Vagrant.configure(2) do |config|
 		server.vm.provision "shell", inline: <<-SHELL
 			# Install K3s server with:
 			# - Binding to 0.0.0.0 (accessible externally)
-			# - TLS SAN for the VM's IP (to avoid cert errors)
-			# - Disabled Flannel (as per your setup)
+      # - TLS SAN for the VM's IP (to avoid cert errors when accessing externally)
 			curl -sfL https://get.k3s.io | \
 			INSTALL_K3S_EXEC="server \
-				--bind-address #{server_ip} \
+        --bind-address 0.0.0.0 \
 				--tls-san #{server_ip} \
-				--flannel-backend none" \
-				K3S_TOKEN=#{token} \
+        --write-kubeconfig-mode 644" \
 			sh -s -
 		SHELL
 	end
+
+  server_token = `vagrant ssh #{server_name} -c "sudo cat /var/lib/rancher/k3s/server/node-token"`.strip
 
 	config.vm.define serverworker_name do |worker|
 		worker.vm.network "private_network", ip: serverworker_ip
@@ -42,16 +41,15 @@ Vagrant.configure(2) do |config|
 		worker.vm.provision "shell", inline: <<-SHELL
 			# Install K3s agent (worker) with:
 			# - Connection to the server IP
-			# - Shared token
+			# - Use server generated token
 			curl -sfL https://get.k3s.io | \
 				K3S_URL=https://#{server_ip}:6443 \
-				sh -s - agent --token #{token}
+				sh -s - agent --token #{server_token}
 		SHELL
 	end
 
-	# provision for both VM (always ran first)
+	# global provision (always runs first)
 	config.vm.provision "shell", inline: <<-SHELL
-		# provisioning
 		sudo apt update -y
 		sudo apt install curl -y
 	SHELL
