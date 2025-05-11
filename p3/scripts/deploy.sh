@@ -1,5 +1,6 @@
 k3d cluster create IoT-cluster \
   --port "0.0.0.0:80:80@loadbalancer" \
+  --port "8888:80@loadbalancer" \
   --port "0.0.0.0:443:443@loadbalancer" \
 
 # install argocd in the cluster
