@@ -1,0 +1,42 @@
+Vagrant.configure(2) do |config|
+	config.vm.box = "bento/ubuntu-24.04"
+
+	server_name = "IoT-VM"
+  server_ip = "192.168.56.123"
+
+	config.vm.define server_name do |server|
+		server.vm.network "private_network", ip: server_ip
+		server.vm.hostname = server_name
+
+	  server.vm.provision "shell", inline: <<-SHELL
+      # Add host machine's github private key to the VM and the github config
+      mkdir -p /home/vagrant/.ssh
+      chmod 700 /home/vagrant/.ssh
+      echo '#{File.read("#{Dir.home}/.ssh/github-key")}' >> /home/vagrant/.ssh/github-key
+      chmod 600 /home/vagrant/.ssh/github-key
+      echo "\nHost github.com\n\tPreferredAuthentications publickey\n\tIdentityFile /home/vagrant/.ssh/github-key" >> /home/vagrant/.ssh/config
+      chown -R vagrant:vagrant /home/vagrant/.ssh
+
+      git config --global user.name "wxuerui-iot"
+      git config --global user.email "wxuerui-iot@gmail.com"
+    SHELL
+
+    server.vm.synced_folder "./conf", "/home/vagrant/conf"
+
+    server.vm.provision "shell", privileged: false, path: "./scripts/install-docker.sh"
+    server.vm.provision "shell", privileged: false, path: "./scripts/install-kubectl.sh"
+    server.vm.provision "shell", privileged: false, path: "./scripts/install-k3d.sh"
+
+    server.vm.provision "shell", privileged: false, inline: <<-SHELL
+      sudo -u vagrant bash /vagrant/scripts/deploy.sh
+    SHELL
+	end
+
+
+	# global provision (always runs first)
+	config.vm.provision "shell", inline: <<-SHELL
+		sudo apt update -y
+		sudo apt install build-essential git curl wget -y
+	SHELL
+
+end

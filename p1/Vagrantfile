@@ -1,0 +1,57 @@
+Vagrant.configure(2) do |config|
+	config.vm.box = "bento/ubuntu-24.04"
+
+	server_name = "wxueruiS"
+	server_ip = "192.168.56.110"
+	serverworker_name = "wxueruiSW"
+	serverworker_ip = "192.168.56.111"
+
+	config.vm.define server_name do |server|
+		server.vm.network "private_network", ip: server_ip
+		server.vm.hostname = server_name
+
+		server.vm.provider "virtualbox" do |v|
+			v.memory = 1024
+			v.cpus = 1
+		end
+
+		server.vm.provision "shell", inline: <<-SHELL
+			# Install K3s server with:
+			# - Binding to 0.0.0.0 (accessible externally)
+      # - TLS SAN for the VM's IP (to avoid cert errors when accessing externally)
+			curl -sfL https://get.k3s.io | \
+			INSTALL_K3S_EXEC="server \
+        --bind-address 0.0.0.0 \
+				--tls-san #{server_ip} \
+        --write-kubeconfig-mode 644" \
+			sh -s -
+		SHELL
+	end
+
+  server_token = `vagrant ssh #{server_name} -c "sudo cat /var/lib/rancher/k3s/server/node-token"`.strip
+
+	config.vm.define serverworker_name do |worker|
+		worker.vm.network "private_network", ip: serverworker_ip
+		worker.vm.hostname = serverworker_name
+
+		worker.vm.provider "virtualbox" do |v|
+			v.memory = 512
+			v.cpus = 1
+		end
+		worker.vm.provision "shell", inline: <<-SHELL
+			# Install K3s agent (worker) with:
+			# - Connection to the server IP
+			# - Use server generated token
+			curl -sfL https://get.k3s.io | \
+				K3S_URL=https://#{server_ip}:6443 \
+				sh -s - agent --token #{server_token}
+		SHELL
+	end
+
+	# global provision (always runs first)
+	config.vm.provision "shell", inline: <<-SHELL
+		sudo apt update -y
+		sudo apt install curl -y
+	SHELL
+
+end
