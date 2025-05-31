@@ -15,7 +15,7 @@ servers = [
     :provider => "virtualbox",
     :memory => 1024,
     :cpus => 1,
-    :script => "sh -s - agent --server https://192.168.56.110:6443 --token 12345 --node-ip 192.168.56.111"
+    :script => "K3S_URL=https://192.168.56.110:6443 sh -s - agent --token 12345 --node-ip 192.168.56.111"
   }
 ]
 
