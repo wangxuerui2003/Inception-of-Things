@@ -1,0 +1,45 @@
+servers = [
+  {
+    :hostname => "chchinS",
+    :network => "private_network",
+    :ip => "192.168.56.110",
+    :provider => "virtualbox",
+    :memory => 1024,
+    :cpus => 1,
+    :script => "sh -s - --write-kubeconfig-mode 644 --token 12345 --node-ip 192.168.56.110"
+  },
+  {
+    :hostname => "chchinSW",
+    :network => "private_network",
+    :ip => "192.168.56.111",
+    :provider => "virtualbox",
+    :memory => 1024,
+    :cpus => 1,
+    :script => "sh -s - agent --server https://192.168.56.110:6443 --token 12345 --node-ip 192.168.56.111"
+  }
+]
+
+Vagrant.configure("2") do |config|
+  servers.each do |machine|
+    config.vm.define machine[:hostname] do |node|
+      node.vm.box = "bento/ubuntu-24.04"
+      node.vm.hostname = machine[:hostname]
+      node.vm.network machine[:network], ip: machine[:ip]
+
+      node.vm.synced_folder ".", "/vagrant", disabled: true
+
+      node.vm.provider machine[:provider] do |v|
+        v.name = machine[:hostname]
+        v.memory = machine[:memory]
+        v.cpus = machine[:cpus]
+      end
+
+      node.vm.provision "shell", inline: <<-SHELL
+        sudo apt-get update -y
+        sudo apt-get install -y curl
+        curl -sfL https://get.k3s.io | #{machine[:script]}
+      SHELL
+
+    end
+  end
+end
